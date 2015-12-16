@@ -54,9 +54,6 @@ apps *ap;
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 int wait=0;
 
-GeisInstance *instancePtr;
-GeisWinInfo *winInfoPtr;
-
 static int inside(float x, float a, float b)
 {
     return ((x <= b) && (x >= a));
@@ -119,8 +116,6 @@ static void update_wishes()
 }
 
 static int doIwait(){
-    pthread_mutex_lock( &mtx );
-    pthread_mutex_unlock( &mtx );
     return wait;
 }
 
@@ -139,7 +134,10 @@ gesture_match(GeisGestureType gesture_type,
               GeisGestureId gesture_id,
               GeisSize attr_count, GeisGestureAttr * attrs, int state)
 {
-    if(doIwait()){
+    pthread_mutex_lock( &mtx );
+    int w=doIwait();
+    pthread_mutex_unlock( &mtx );
+    if(w){
         return;
     }
     struct wish *topw;
@@ -182,7 +180,6 @@ gesture_match(GeisGestureType gesture_type,
                             //otherwise the motion has not taken place, that's for sure
                            valid=0;
                         }
-                        attrsI=17;
                     }else{
                         //but if this is not a finish motion
                         valid=valid&&inside(flv, val, valMax);
@@ -194,9 +191,7 @@ gesture_match(GeisGestureType gesture_type,
                     attrsI++;
                 }
             } while ((0 != strcmp(wp->config_attr[cAttrI].attrName, "")) && attrsI < 18);
-            printf("Valid?: %d while state is: %d and when is: %d\n", valid, state, wp->when);
             if (valid) {
-                printf("Valid: %d while state is: %d\n", valid, state);
                 if ((0 != wp->button)
                     && (0 != strcmp(wp->key, ""))) {
                     injMixBtnKey(XStringToKeysym(wp->key),
@@ -210,7 +205,6 @@ gesture_match(GeisGestureType gesture_type,
                 }
                 clear_accum_attrs(wp->config_attr);
                 if(wp->when==GINN_FINISH){
-                    wait=1;
                     pthread_t braker;
                     pthread_create( &braker, NULL, &makeWait, NULL);
                 }
@@ -407,8 +401,6 @@ int main(int argc, char *argv[])
         &xcb_win_info
     };
     GeisInstance instance;
-    instancePtr=&instance;
-    winInfoPtr=&win_info;
     struct ginn_config cfg;
 
     {
