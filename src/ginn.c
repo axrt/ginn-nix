@@ -127,6 +127,7 @@ static void makeWait(){
     pthread_mutex_lock( &mtx );
     wait=0;
     pthread_mutex_unlock( &mtx );
+    pthread_exit(3);
 }
 
 static void
@@ -134,15 +135,20 @@ gesture_match(GeisGestureType gesture_type,
               GeisGestureId gesture_id,
               GeisSize attr_count, GeisGestureAttr * attrs, int state)
 {
+    
+    struct wish *topw;
+    topw = wp;
+    update_wishes();
+    
     pthread_mutex_lock( &mtx );
     int w=doIwait();
     pthread_mutex_unlock( &mtx );
     if(w){
+        clear_accum_attrs(wp->config_attr);
+        wp = topw;
         return;
     }
-    struct wish *topw;
-    topw = wp;
-    update_wishes();
+    
     while (wp && (0 != strcmp(wp->key, "") || wp->button)) {
         int valid = 1;
         GeisFloat maxVal=0;
